@@ -1,0 +1,93 @@
+service: movies
+frameworkVersion: ">=1.1.0 <2.0.0"
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
+
+custom:
+  dynamodb:
+    start:
+      port: 9000
+      inMemory: true
+      migrate: true
+
+
+provider:
+  name: aws
+  runtime: nodejs4.3
+  stage: dev
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+
+functions:
+  create:
+    handler: models/create.create
+    events:
+      - http:
+          path: movies
+          method: post
+          cors: true
+
+  list:
+    handler: models/list.list
+    events:
+      - http:
+          path: movies
+          method: get
+          cors: true
+
+  get:
+    handler: models/get.get
+    events:
+      - http:
+          path: movies/{id}
+          method: get
+          cors: true
+
+  update:
+    handler: models/update.update
+    events:
+      - http:
+          path: movies/{id}
+          method: put
+          cors: true
+
+  delete:
+    handler: models/delete.delete
+    events:
+      - http:
+          path: movies
+          method: delete
+          cors: true
+
+
+
+resources:
+  Resources:
+    MoviesDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
